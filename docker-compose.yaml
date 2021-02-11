@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  model_service:
+    image: model
+    container_name: model_conteiner
+    build:
+      context: ./model
+      dockerfile: Dockerfile
+    ports:
+      - 9000:9000
+    # volumes:
+    #   - ./:/opt/model
+
+  ml_flow:
+    image: my_mlflow_image
+    user: 1000:1000
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+          - "5000:5000"
+    volumes:
+        - ./:/opt/mlflow
+
