@@ -1,24 +1,25 @@
-version: "3.8"
+version: "3"
 services:
   model_service:
     image: model
-    container_name: model_conteiner
+    container_name: model_container
     build:
-      context: ./model
+      context: ./script_dockerfile
       dockerfile: Dockerfile
-    ports:
-      - 9000:9000
-    # volumes:
-    #   - ./:/opt/model
+    restart: on-failure
+    command: bash -c "cd volume && python train.py"
+    volumes:
+      - ./volume:/volume
 
   ml_flow:
     image: my_mlflow_image
-    user: 1000:1000
+    container_name: mlflow_container
     build:
-      context: ./
+      context: ./server_dockerfile
       dockerfile: Dockerfile
     ports:
           - "5000:5000"
+    command: bash -c "cd volume && mlflow server --host 0.0.0.0:5000"
     volumes:
-        - ./:/opt/mlflow
+        - ./volume:/volume
 

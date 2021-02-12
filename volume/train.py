@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 
 if __name__ == "__main__":
 
-        df = pd.read_csv("opt/model/data/data_processed.csv")
+        df = pd.read_csv("data_processed.csv")
 
         #### Get features ready to model! 
         y = df.pop("cons_general").to_numpy()
@@ -78,4 +78,5 @@ if __name__ == "__main__":
                 sns.set_color_codes("dark")
                 ax = sns.barplot(x="region", y="pred_accuracy", data=df, palette = "Greens_d")
                 ax.set(xlabel="Region", ylabel = "Model accuracy")
-                plt.savefig("by_region.png",dpi=80)
+                plt.savefig("by_region.png", dpi=80)
+                mlflow.log_artifact("./by_region.png")
