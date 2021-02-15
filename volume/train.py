@@ -1,7 +1,6 @@
 '''module dockstring'''
 import sys
 import json
-from urllib.parse import urlparse
 import pandas as pd
 import numpy as np
 from sklearn import preprocessing
@@ -14,47 +13,45 @@ import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
 
-
-if __name__ == "__main__":
-
-    df = pd.read_csv("data_processed.csv")
-
+def get_data(path):
+    '''module dockstring'''
+    df = pd.read_csv(path)
     y = df.pop("cons_general").to_numpy()
     y[y< 4] = 0
     y[y>= 4] = 1
-
     X = df.to_numpy()
-    X = preprocessing.scale(X) # Is standard
+    return X, y, df
 
-    REMOTE_SERVER_URI = 'http://ml_flow:5000'
-    mlflow.set_tracking_uri(REMOTE_SERVER_URI)
-
-    # Impute NaNs
+def preproc(X):
+    '''module dockstring'''
+    X = preprocessing.scale(X)
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
     imp.fit(X)
     X = imp.transform(X)
-    PENALTY = str(sys.argv[1]) if len(sys.argv) > 1 else 'l2'
-    C = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
-    SOLVER = str(sys.argv[3]) if len(sys.argv) > 3 else 'lbfgs'
-    with mlflow.start_run():
+    return X
 
-        # Linear model
-        clf = LogisticRegression(penalty=PENALTY, C=C, solver=SOLVER)
-        yhat = cross_val_predict(clf, X, y, cv=10)
+def train_predict(X, y, penalty, C, solver):
+    '''module dockstring'''
+    # Linear model
+    clf = LogisticRegression(penalty=penalty, C=C, solver=solver)
+    yhat = cross_val_predict(clf, X, y, cv=10)
+    return yhat, clf
+
+def mlflow_log(df, y, yhat, penalty, C, solver, clf):
+    '''module dockstring'''
+    with mlflow.start_run():
 
         acc = np.mean(yhat==y)
         tn, fp, fn, tp = confusion_matrix(y, yhat).ravel()
         specificity = tn / (tn + fp)
         sensitivity = tp / (tp + fn)
 
-        mlflow.log_param('penalty', PENALTY)
+        mlflow.log_param('penalty', penalty)
         mlflow.log_param('C', C)
-        mlflow.log_param('solver', SOLVER)
+        mlflow.log_param('solver', solver)
         mlflow.log_metric('acc', acc)
         mlflow.log_metric('specificity', specificity)
         mlflow.log_metric('sensitivity', sensitivity)
-
-        tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
         mlflow.sklearn.log_model(clf, "model")
 
         # Now print to file
@@ -75,3 +72,19 @@ if __name__ == "__main__":
         ax.set(xlabel="Region", ylabel = "Model accuracy")
         plt.savefig("by_region.png", dpi=80)
         mlflow.log_artifact("./by_region.png")
+
+if __name__ == "__main__":
+
+    X, y, df = get_data("data_processed.csv")
+
+    X = preproc(X)
+
+    REMOTE_SERVER_URI = 'http://ml_flow:5000'
+    mlflow.set_tracking_uri(REMOTE_SERVER_URI)
+    PENALTY = str(sys.argv[1]) if len(sys.argv) > 1 else 'l2'
+    C = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
+    SOLVER = str(sys.argv[3]) if len(sys.argv) > 3 else 'lbfgs'
+
+    y_hat, clf = train_predict(X=X, y=y, penalty=PENALTY, C=C, solver=SOLVER)
+
+    mlflow_log(df=df, y=y, yhat=y_hat, penalty=PENALTY, C=C, solver=SOLVER, clf=clf)
